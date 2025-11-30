@@ -1,4 +1,4 @@
-import numpy as np
+import autograd.numpy as np
 from scipy.optimize import minimize            
 from scipy.optimize import BFGS
         

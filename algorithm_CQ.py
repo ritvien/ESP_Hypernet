@@ -1,7 +1,7 @@
 from prettytable import PrettyTable
 from numpy import linalg as LA
 from tqdm import tqdm
-import numpy as np
+import autograd.numpy as np
 
 def fmt(arr, precision=6):
     return np.array2string(arr, precision=precision, separator=', ', suppress_small=True)
@@ -38,7 +38,7 @@ def CQ_split_acceptance(f, jac_f, proj_C, proj_Qplus, x0,
 
         table.add_row([
             k, 
-            fmt(x_new), 
+            fmt(x), 
             fmt(z), 
             fmt(z_proj), 
             f"{err_x:.6f}", 
@@ -49,11 +49,12 @@ def CQ_split_acceptance(f, jac_f, proj_C, proj_Qplus, x0,
         if err_f < tol:
             print(f"\nHội tụ tại vòng lặp {k}")
             break
-            
-        x = x_new
+        
         x_hist.append(x.copy())
-        f_hist.append(f(x).copy())
+        f_hist.append(z.copy())
         z_proj_hist.append(z_proj.copy())
+        x = x_new
+
     
     print(table)
     return x, np.array(x_hist), np.array(f_hist), np.array(z_proj_hist)
