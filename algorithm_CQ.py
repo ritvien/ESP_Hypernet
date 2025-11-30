@@ -46,7 +46,7 @@ def CQ_split_acceptance(f, jac_f, proj_C, proj_Qplus, x0,
         ])
         # --------------------
             
-        if err_x < tol:
+        if err_f < tol:
             print(f"\nHội tụ tại vòng lặp {k}")
             break
             

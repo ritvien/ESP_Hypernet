@@ -29,7 +29,7 @@ class Projection:
     
     def _obj_positive_diff(self, x, y):
         """Hàm mục tiêu (Dùng cho Qplus)"""
-        v = np.maximum(x - y, 0) 
+        v = np.maximum(y - x, 0) 
         return np.sum(v**2)
 
     def project(self, target_point):
@@ -44,10 +44,10 @@ class Projection:
             self.objective_func,
             init_point,
             args=(target_point, ),
-            jac="2-point",
-            hess=BFGS(),
+#             jac="2-point",
+#             hess=BFGS(),
             constraints=self.cons,
-            method="trust-constr",
+#             method="trust-constr",
             bounds=self.bounds,
             options={'disp': False}
         )
