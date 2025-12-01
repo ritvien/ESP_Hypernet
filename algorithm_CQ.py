@@ -20,16 +20,18 @@ def CQ_split_acceptance(f, jac_f, proj_C, proj_Qplus, x0,
     z_proj_hist = []  
     
     table = PrettyTable()
-    table.field_names = ["k", "x_new", "y", "z_proj", "e_x", "e_f"]
+    table.field_names = ["k", "x_new", "gamma_k", "y", "z_proj", "e_x", "e_f"]
     
     table.align["x_new"] = "l"
     table.align["y"] = "l"
+    table.align["gamma_k"] = "l"
     table.align["z_proj"] = "l"
 
     for k in tqdm(range(max_iter)):
         z = f(x)
         z_proj = proj_Qplus(z)          # P_{Q⁺}(f(x))
         g = jac_f(x).T @ (z - z_proj)   # ∇Φ(x)
+#         gamma_k = gamma / ((k + 1)**1.01) 
         x_new = proj_C(x - gamma * g)
         
         err_x = LA.norm(x_new - x)
@@ -39,6 +41,7 @@ def CQ_split_acceptance(f, jac_f, proj_C, proj_Qplus, x0,
         table.add_row([
             k, 
             fmt(x), 
+            f"{gamma:.4f}", 
             fmt(z), 
             fmt(z_proj), 
             f"{err_x:.6f}", 
@@ -46,7 +49,7 @@ def CQ_split_acceptance(f, jac_f, proj_C, proj_Qplus, x0,
         ])
         # --------------------
             
-        if err_f < tol:
+        if LA.norm(x_new - x) < tol:
             print(f"\nHội tụ tại vòng lặp {k}")
             break
         

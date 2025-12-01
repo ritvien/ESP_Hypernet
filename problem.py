@@ -11,7 +11,9 @@ class Problem():
         self.proj_Qplus = proj_Qplus
     
     def objective_func(self, x):
-        return np.array([func(x) for func in self.f])
+        vals = [func(x) for func in self.f]
+        return np.concatenate(vals)
     
     def jacobian(self, x):
-        return np.array([func(x) for func in self.jac_f])
+        jacs = [func(x) for func in self.jac_f]
+        return np.vstack(jacs)
