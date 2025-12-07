@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
 from matplotlib.patches import Patch
+import matplotlib.patches as patches
 from scipy.optimize import Bounds
 from mpl_toolkits.axes_grid1.inset_locator import inset_axes, mark_inset
 
@@ -259,3 +260,110 @@ def visualize_complete_system(x_hist, f_hist, z_proj_hist,
     plt.subplots_adjust(bottom=0.1) 
     
     return fig
+
+
+
+def visualize_trajectory(path_x, prob, u_star, 
+                         radius_c=2.0, 
+                         q_bound=-1.0, 
+                         x_limits=(-3.5, 2.5), 
+                         y_limits=(-3.5, 1.5)):
+    """
+    Hàm vẽ quỹ đạo tối ưu hóa trong không gian nguồn (C) và không gian ảnh (Q+).
+    
+    Tham số:
+    - path_x: List hoặc array chứa lịch sử các điểm x qua từng bước lặp.
+    - prob: Đối tượng bài toán (chứa phương thức objective_func).
+    - u_star: Điểm mục tiêu mong muốn (trong không gian ảnh).
+    - radius_c: Bán kính của tập ràng buộc C (mặc định 2.0).
+    - q_bound: Giới hạn trên của tập Q+ (mặc định -1.0 cho cả 2 chiều).
+    - x_limits: Tuple (min, max) cho trục của đồ thị.
+    - y_limits: Tuple (min, max) cho trục của đồ thị.
+    """
+    
+    # 1. Chuẩn bị dữ liệu quỹ đạo
+    path_x_arr = np.array(path_x) 
+    
+    # Tính toán quỹ đạo f(x) tương ứng
+    # Lưu ý: prob.objective_func cần trả về mảng 1 chiều (shape (2,))
+    path_f_arr = np.array([prob.objective_func(p) for p in path_x_arr])
+
+    # 2. TÍNH TOÁN BIÊN CỦA f(C)
+    # Tạo các điểm trên biên của C (Hình tròn) để ánh xạ sang bên phải
+    theta = np.linspace(0, 2*np.pi, 200) # 200 điểm cho mượt
+    boundary_x = radius_c * np.cos(theta)
+    boundary_y = radius_c * np.sin(theta)
+    boundary_C_points = np.vstack((boundary_x, boundary_y)).T
+
+    # Ánh xạ các điểm biên này qua hàm f để có biên của f(C)
+    boundary_fC_points = np.array([prob.objective_func(p) for p in boundary_C_points])
+
+    # 3. Khởi tạo khung hình
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8))
+
+    # =========================================================
+    # HÌNH 1: KHÔNG GIAN BIẾN X (Tập C và quỹ đạo x)
+    # =========================================================
+    ax1.set_title(f"Không gian biến $X$", fontsize=14)
+
+    # Vẽ Tập C (Hình tròn)
+    circle = plt.Circle((0, 0), radius_c, color='skyblue', alpha=0.3, label='Miền C')
+    ax1.add_patch(circle)
+    ax1.add_patch(plt.Circle((0, 0), radius_c, color='blue', fill=False, linestyle='--')) # Viền
+
+    # Vẽ quỹ đạo x
+    ax1.plot(path_x_arr[:, 0], path_x_arr[:, 1], 'k.-', linewidth=1.5, label='Quỹ đạo $x$')
+    ax1.scatter(path_x_arr[0, 0], path_x_arr[0, 1], c='cyan', s=100, edgecolors='k', label='Start')
+    ax1.scatter(path_x_arr[-1, 0], path_x_arr[-1, 1], c='red', s=120, marker='X', edgecolors='k', label='Final $x$')
+
+    # Trang trí Ax1
+    ax1.set_xlim(x_limits[0], x_limits[1])
+    ax1.set_ylim(x_limits[0], x_limits[1]) # Dùng chung limit cho vuông
+    ax1.set_aspect('equal')
+    ax1.grid(True, linestyle=':', alpha=0.6)
+    ax1.set_xlabel("$x_1$")
+    ax1.set_ylabel("$x_2$")
+    ax1.legend(loc='upper right')
+
+    # =========================================================
+    # HÌNH 2: KHÔNG GIAN ẢNH Y (Ảnh f(C), Q+ và quỹ đạo f(x))
+    # =========================================================
+    ax2.set_title("Không gian ảnh $Y$", fontsize=14)
+
+    # Vẽ Tập Ảnh f(C) dùng Polygon
+    poly_fC = plt.Polygon(boundary_fC_points, closed=True, facecolor='mediumpurple', alpha=0.4, label='Ảnh $f(C)$')
+    ax2.add_patch(poly_fC)
+    # Vẽ đường viền của f(C)
+    ax2.plot(boundary_fC_points[:, 0], boundary_fC_points[:, 1], color='indigo', linestyle='--', linewidth=1)
+
+    # Vẽ biên giới hạn của Q+
+    ax2.axvline(x=q_bound, color='red', linestyle='--', linewidth=1.5, label=f'Biên $Q^+$ ')
+    ax2.axhline(y=q_bound, color='red', linestyle='--', linewidth=1.5)
+
+    # Tô màu vùng Q+ (Vùng khả thi của f(x))
+    # Vẽ hình chữ nhật lớn về phía âm vô cùng
+    rect_width = abs(y_limits[0] - q_bound) + 5 # Cộng thêm 5 để chắc chắn phủ hết
+    rect_height = abs(y_limits[0] - q_bound) + 5
+    rect_Qplus = patches.Rectangle((q_bound - rect_width, q_bound - rect_height), 
+                                   rect_width, rect_height, 
+                                   color='salmon', alpha=0.1, label='Miền $Q^+$')
+    ax2.add_patch(rect_Qplus)
+
+    # Vẽ điểm mục tiêu u* (Target)
+    ax2.scatter(u_star[0], u_star[1], c='gold', s=300, marker='*', edgecolors='k', zorder=10, label='Target $u^*$')
+
+    # Vẽ quỹ đạo f(x)
+    ax2.plot(path_f_arr[:, 0], path_f_arr[:, 1], 'k.-', linewidth=1.5, label='Quỹ đạo $f(x)$')
+    ax2.scatter(path_f_arr[-1, 0], path_f_arr[-1, 1], c='red', s=120, marker='X', edgecolors='k', label='Final $f(x)$')
+
+    # Trang trí Ax2
+    ax2.set_xlim(y_limits[0], y_limits[1])
+    ax2.set_ylim(y_limits[0], y_limits[1])
+    ax2.set_aspect('equal')
+    ax2.grid(True, linestyle=':', alpha=0.6)
+    ax2.set_xlabel("$f_1(x)$")
+    ax2.set_ylabel("$f_2(x)$")
+    ax2.legend(loc='upper right')
+
+    plt.tight_layout()
+    plt.show()
