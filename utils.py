@@ -262,12 +262,12 @@ def visualize_complete_system(x_hist, f_hist, z_proj_hist,
     return fig
 
 
-
 def visualize_trajectory(path_x, prob, u_star, 
                          radius_c=2.0, 
                          q_bound=-1.0, 
                          x_limits=(-3.5, 2.5), 
-                         y_limits=(-3.5, 1.5)):
+                         y_limits=(-3.5, 1.5),
+                         titles=None):
     """
     Hàm vẽ quỹ đạo tối ưu hóa trong không gian nguồn (C) và không gian ảnh (Q+).
     
@@ -277,15 +277,17 @@ def visualize_trajectory(path_x, prob, u_star,
     - u_star: Điểm mục tiêu mong muốn (trong không gian ảnh).
     - radius_c: Bán kính của tập ràng buộc C (mặc định 2.0).
     - q_bound: Giới hạn trên của tập Q+ (mặc định -1.0 cho cả 2 chiều).
-    - x_limits: Tuple (min, max) cho trục của đồ thị.
-    - y_limits: Tuple (min, max) cho trục của đồ thị.
+    - x_limits: Tuple (min, max) cho trục của đồ thị X.
+    - y_limits: Tuple (min, max) cho trục của đồ thị Y.
+    - titles: Tuple hoặc List chứa 2 chuỗi ký tự (Title_X, Title_Y). 
+              Ví dụ: ("Không gian biến", "Không gian ảnh").
+              Nếu None, sẽ dùng title mặc định.
     """
     
     # 1. Chuẩn bị dữ liệu quỹ đạo
     path_x_arr = np.array(path_x) 
     
     # Tính toán quỹ đạo f(x) tương ứng
-    # Lưu ý: prob.objective_func cần trả về mảng 1 chiều (shape (2,))
     path_f_arr = np.array([prob.objective_func(p) for p in path_x_arr])
 
     # 2. TÍNH TOÁN BIÊN CỦA f(C)
@@ -301,10 +303,18 @@ def visualize_trajectory(path_x, prob, u_star,
     # 3. Khởi tạo khung hình
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8))
 
+    # --- XỬ LÝ TIÊU ĐỀ (TITLES) ---
+    title_x = "Không gian biến $X$" # Mặc định
+    title_y = "Không gian ảnh $Y$"  # Mặc định
+    
+    if titles is not None:
+        if len(titles) >= 1: title_x = titles[0]
+        if len(titles) >= 2: title_y = titles[1]
+
     # =========================================================
     # HÌNH 1: KHÔNG GIAN BIẾN X (Tập C và quỹ đạo x)
     # =========================================================
-    ax1.set_title(f"Không gian biến $X$", fontsize=14)
+    ax1.set_title(title_x, fontsize=14) # <--- SỬ DỤNG TITLE X
 
     # Vẽ Tập C (Hình tròn)
     circle = plt.Circle((0, 0), radius_c, color='skyblue', alpha=0.3, label='Miền C')
@@ -318,7 +328,7 @@ def visualize_trajectory(path_x, prob, u_star,
 
     # Trang trí Ax1
     ax1.set_xlim(x_limits[0], x_limits[1])
-    ax1.set_ylim(x_limits[0], x_limits[1]) # Dùng chung limit cho vuông
+    ax1.set_ylim(x_limits[0], x_limits[1]) 
     ax1.set_aspect('equal')
     ax1.grid(True, linestyle=':', alpha=0.6)
     ax1.set_xlabel("$x_1$")
@@ -328,7 +338,7 @@ def visualize_trajectory(path_x, prob, u_star,
     # =========================================================
     # HÌNH 2: KHÔNG GIAN ẢNH Y (Ảnh f(C), Q+ và quỹ đạo f(x))
     # =========================================================
-    ax2.set_title("Không gian ảnh $Y$", fontsize=14)
+    ax2.set_title(title_y, fontsize=14) # <--- SỬ DỤNG TITLE Y
 
     # Vẽ Tập Ảnh f(C) dùng Polygon
     poly_fC = plt.Polygon(boundary_fC_points, closed=True, facecolor='mediumpurple', alpha=0.4, label='Ảnh $f(C)$')
@@ -337,12 +347,11 @@ def visualize_trajectory(path_x, prob, u_star,
     ax2.plot(boundary_fC_points[:, 0], boundary_fC_points[:, 1], color='indigo', linestyle='--', linewidth=1)
 
     # Vẽ biên giới hạn của Q+
-    ax2.axvline(x=q_bound, color='red', linestyle='--', linewidth=1.5, label=f'Biên $Q^+$ ')
+    ax2.axvline(x=q_bound, color='red', linestyle='--', linewidth=1.5, label=f'Biên $Q^+$')
     ax2.axhline(y=q_bound, color='red', linestyle='--', linewidth=1.5)
 
     # Tô màu vùng Q+ (Vùng khả thi của f(x))
-    # Vẽ hình chữ nhật lớn về phía âm vô cùng
-    rect_width = abs(y_limits[0] - q_bound) + 5 # Cộng thêm 5 để chắc chắn phủ hết
+    rect_width = abs(y_limits[0] - q_bound) + 5 
     rect_height = abs(y_limits[0] - q_bound) + 5
     rect_Qplus = patches.Rectangle((q_bound - rect_width, q_bound - rect_height), 
                                    rect_width, rect_height, 
