@@ -245,6 +245,7 @@ def visualize_complete_system(x_hist, f_hist, z_proj_hist,
                                raw_point=pt_z0, enable_zoom=True)
         else:
             # Tắt ô thừa nếu X có 3 cặp mà Y chỉ có 1 cặp
+            print(f"cột {i} nhiều hơn số cặp Q: {len(pairs_y)}")
             ax.axis('off')
 
     legend_elements = [
