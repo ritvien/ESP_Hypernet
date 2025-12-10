@@ -48,14 +48,14 @@ def CQ_split_acceptance(f, jac_f, proj_C, proj_Qplus, x0,
             f"{err_f:.6f}"
         ])
         # --------------------
-            
-        if LA.norm(x_new - x) < tol:
-            print(f"\nHội tụ tại vòng lặp {k}")
-            break
-        
+                    
         x_hist.append(x.copy())
         f_hist.append(z.copy())
         z_proj_hist.append(z_proj.copy())
+        
+        if err_f < tol:
+            print(f"\nHội tụ tại vòng lặp {k}")
+            break
         x = x_new
 
     

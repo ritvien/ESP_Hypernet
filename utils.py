@@ -207,10 +207,8 @@ def visualize_complete_system(x_hist, f_hist, z_proj_hist,
     pt_z0 = sanitize_point(z0)
 
     # 2. Đồng bộ độ dài
-    n = min(len(data_x), len(data_f), len(data_z))
-    data_x = data_x[:n]
-    data_f = data_f[:n]
-    data_z = data_z[:n]
+    data_x = data_x[1:]
+    data_f = data_f[1:]
     
     # 3. Chọn cặp
     pairs_x = select_interesting_pairs(data_x, max_pairs=max_cols)
@@ -263,117 +261,170 @@ def visualize_complete_system(x_hist, f_hist, z_proj_hist,
     return fig
 
 
-def visualize_trajectory(path_x, prob, u_star, 
-                         radius_c=2.0, 
-                         q_bound=-1.0, 
-                         x_limits=(-3.5, 2.5), 
-                         y_limits=(-3.5, 1.5),
-                         titles=None):
+
+    
+def check_constraints(points, constraints, bounds=None):
     """
-    Hàm vẽ quỹ đạo tối ưu hóa trong không gian nguồn (C) và không gian ảnh (Q+).
-    
-    Tham số:
-    - path_x: List hoặc array chứa lịch sử các điểm x qua từng bước lặp.
-    - prob: Đối tượng bài toán (chứa phương thức objective_func).
-    - u_star: Điểm mục tiêu mong muốn (trong không gian ảnh).
-    - radius_c: Bán kính của tập ràng buộc C (mặc định 2.0).
-    - q_bound: Giới hạn trên của tập Q+ (mặc định -1.0 cho cả 2 chiều).
-    - x_limits: Tuple (min, max) cho trục của đồ thị X.
-    - y_limits: Tuple (min, max) cho trục của đồ thị Y.
-    - titles: Tuple hoặc List chứa 2 chuỗi ký tự (Title_X, Title_Y). 
-              Ví dụ: ("Không gian biến", "Không gian ảnh").
-              Nếu None, sẽ dùng title mặc định.
+    Hàm phụ trợ kiểm tra constraints (Đã sửa lỗi shapes).
     """
+    n_points = points.shape[0]
+    is_feasible = np.ones(n_points, dtype=bool)
     
-    # 1. Chuẩn bị dữ liệu quỹ đạo
-    path_x_arr = np.array(path_x) 
+    # 1. Kiểm tra Bounds
+    if bounds is not None:
+        if isinstance(bounds, (list, tuple)):
+            for i, b in enumerate(bounds):
+                if b is not None:
+                    if b[0] is not None: is_feasible &= (points[:, i] >= b[0])
+                    if b[1] is not None: is_feasible &= (points[:, i] <= b[1])
     
-    # Tính toán quỹ đạo f(x) tương ứng
-    path_f_arr = np.array([prob.objective_func(p) for p in path_x_arr])
+    # 2. Kiểm tra Constraints
+    if constraints:
+        for cons in constraints:
+            vals = None
+            
+            try:
+                res = cons['fun'](points.T)                 
+                if res.ndim == 2 and res.shape[1] == n_points:
+                    vals = res.T
+                elif res.ndim == 1 and res.shape[0] == n_points:
+                    vals = res
+            except:
+                pass
+            # B. Fallback: Loop từng điểm (chậm nhưng chắc)
+            if vals is None:
+                vals = np.array([cons['fun'](p) for p in points])
+            # C. Xử lý logic Đa ràng buộc (Multi-constraints)
+            if vals.ndim > 1:
+                if cons['type'] == 'ineq':
+                    vals = np.min(vals, axis=1) 
+                elif cons['type'] == 'eq':
+                    vals = np.max(np.abs(vals), axis=1)
 
-    # 2. TÍNH TOÁN BIÊN CỦA f(C)
-    # Tạo các điểm trên biên của C (Hình tròn) để ánh xạ sang bên phải
-    theta = np.linspace(0, 2*np.pi, 200) # 200 điểm cho mượt
-    boundary_x = radius_c * np.cos(theta)
-    boundary_y = radius_c * np.sin(theta)
-    boundary_C_points = np.vstack((boundary_x, boundary_y)).T
+            # D. So sánh cập nhật mask
+            if vals.shape[0] != n_points:
+                print(f"Warning: Shape mismatch in constraint check. Expected {n_points}, got {vals.shape}")
+                continue
 
-    # Ánh xạ các điểm biên này qua hàm f để có biên của f(C)
-    boundary_fC_points = np.array([prob.objective_func(p) for p in boundary_C_points])
+            if cons['type'] == 'ineq':
+                is_feasible &= (vals >= -1e-5)
+            elif cons['type'] == 'eq':
+                if vals.ndim == 1 and np.any(vals < 0): # Check sơ bộ
+                     is_feasible &= (np.abs(vals) <= 1e-3)
+                else:
+                     is_feasible &= (vals <= 1e-3)
 
-    # 3. Khởi tạo khung hình
-    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(18, 8))
+    return is_feasible
 
-    # --- XỬ LÝ TIÊU ĐỀ (TITLES) ---
-    title_x = "Không gian biến $X$" # Mặc định
-    title_y = "Không gian ảnh $Y$"  # Mặc định
+def visualize_trajectory_generic(path_x, f_func, 
+                                 cons_C, cons_Qplus,
+                                 u_star=None,
+                                 bounds_x=None, 
+                                 x_limits=(-4, 4), 
+                                 y_limits=(-4, 4),
+                                 titles=None):
     
-    if titles is not None:
+    # 1. Chuẩn bị dữ liệu
+    path_x_arr = np.array(path_x)
+    path_f_arr = np.array([f_func(p) for p in path_x_arr])
+
+    # 2. Khởi tạo khung hình
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 7))
+    
+    title_x = "Không gian biến $X$ (Miền $C$)"
+    title_y = "Không gian ảnh $Y$ (Miền $Q^+$)"
+    if titles:
         if len(titles) >= 1: title_x = titles[0]
         if len(titles) >= 2: title_y = titles[1]
 
     # =========================================================
-    # HÌNH 1: KHÔNG GIAN BIẾN X (Tập C và quỹ đạo x)
+    # HÌNH 1: KHÔNG GIAN BIẾN X
     # =========================================================
-    ax1.set_title(title_x, fontsize=14) # <--- SỬ DỤNG TITLE X
-
-    # Vẽ Tập C (Hình tròn)
-    circle = plt.Circle((0, 0), radius_c, color='skyblue', alpha=0.3, label='Miền C')
-    ax1.add_patch(circle)
-    ax1.add_patch(plt.Circle((0, 0), radius_c, color='blue', fill=False, linestyle='--')) # Viền
-
-    # Vẽ quỹ đạo x
-    ax1.plot(path_x_arr[:, 0], path_x_arr[:, 1], 'k.-', linewidth=1.5, label='Quỹ đạo $x$')
-    ax1.scatter(path_x_arr[0, 0], path_x_arr[0, 1], c='cyan', s=100, edgecolors='k', label='Start')
-    ax1.scatter(path_x_arr[-1, 0], path_x_arr[-1, 1], c='red', s=120, marker='X', edgecolors='k', label='Final $x$')
-
-    # Trang trí Ax1
-    ax1.set_xlim(x_limits[0], x_limits[1])
-    ax1.set_ylim(x_limits[0], x_limits[1]) 
-    ax1.set_aspect('equal')
-    ax1.grid(True, linestyle=':', alpha=0.6)
-    ax1.set_xlabel("$x_1$")
-    ax1.set_ylabel("$x_2$")
-    ax1.legend(loc='upper right')
+    ax1.set_title(title_x, fontsize=13)
+    
+    res = 500 
+    x1_vals = np.linspace(x_limits[0], x_limits[1], res)
+    x2_vals = np.linspace(x_limits[0], x_limits[1], res)
+    X1, X2 = np.meshgrid(x1_vals, x2_vals)
+    grid_points_X = np.vstack([X1.ravel(), X2.ravel()]).T
+    
+    # Tính mask C
+    mask_C = check_constraints(grid_points_X, cons_C, bounds_x).reshape(X1.shape)
+    
+    # Vẽ nền C
+    ax1.contourf(X1, X2, mask_C, levels=[0.5, 1.5], colors=['skyblue'], alpha=0.4)
+    ax1.contour(X1, X2, mask_C, levels=[0.5], colors='blue', linewidths=1.5)
+    
+    # Vẽ quỹ đạo x (zorder thấp để nằm dưới điểm)
+    ax1.plot(path_x_arr[:, 0], path_x_arr[:, 1], 'k.-', linewidth=1.5, label='Quỹ đạo $x$', zorder=2)
+    
+    # Vẽ điểm Start/End (zorder cao để nằm trên)
+    ax1.scatter(path_x_arr[0, 0], path_x_arr[0, 1], c='cyan', s=80, edgecolors='k', label='Start', zorder=5)
+    ax1.scatter(path_x_arr[-1, 0], path_x_arr[-1, 1], c='red', s=100, marker='X', edgecolors='k', label='End', zorder=5)
+    
+    ax1.set_xlim(x_limits); ax1.set_ylim(x_limits)
+    ax1.grid(True, linestyle=':', alpha=0.5); ax1.legend(loc='best')
 
     # =========================================================
-    # HÌNH 2: KHÔNG GIAN ẢNH Y (Ảnh f(C), Q+ và quỹ đạo f(x))
+    # HÌNH 2: KHÔNG GIAN ẢNH Y
     # =========================================================
-    ax2.set_title(title_y, fontsize=14) # <--- SỬ DỤNG TITLE Y
+    ax2.set_title(title_y, fontsize=13)
 
-    # Vẽ Tập Ảnh f(C) dùng Polygon
-    poly_fC = plt.Polygon(boundary_fC_points, closed=True, facecolor='mediumpurple', alpha=0.4, label='Ảnh $f(C)$')
-    ax2.add_patch(poly_fC)
-    # Vẽ đường viền của f(C)
-    ax2.plot(boundary_fC_points[:, 0], boundary_fC_points[:, 1], color='indigo', linestyle='--', linewidth=1)
+    y1_vals = np.linspace(y_limits[0], y_limits[1], res)
+    y2_vals = np.linspace(y_limits[0], y_limits[1], res)
+    Y1, Y2 = np.meshgrid(y1_vals, y2_vals)
+    grid_points_Y = np.vstack([Y1.ravel(), Y2.ravel()]).T
+    
+    mask_Q = check_constraints(grid_points_Y, cons_Qplus, None).reshape(Y1.shape)
+    
+    # Vẽ nền Q+
+    ax2.contourf(Y1, Y2, mask_Q, levels=[0.5, 1.5], colors=['salmon'], alpha=0.2)
+    ax2.contour(Y1, Y2, mask_Q, levels=[0.5], colors='red', linewidths=1.5, linestyles='--')
+    
+    # --- VẼ ĐÁM MÂY f(C) VỚI ĐỘ PHÂN GIẢI CAO ---
+    points_in_C = grid_points_X[mask_C.ravel()]
+    
+    # Tăng số lượng điểm lấy mẫu lên 15,000 (gấp 10 lần cũ)
+    num_samples = 50000 
+    if len(points_in_C) > num_samples:
+        indices = np.random.choice(len(points_in_C), num_samples, replace=False)
+        sample_C = points_in_C[indices]
+    else:
+        sample_C = points_in_C
+        
+    if len(sample_C) > 0:
+        sample_fC = np.array([f_func(p) for p in sample_C])
+        ax2.scatter(sample_fC[:, 0], sample_fC[:, 1], c='mediumpurple', s=13, alpha=0.1, zorder=1)
 
-    # Vẽ biên giới hạn của Q+
-    ax2.axvline(x=q_bound, color='red', linestyle='--', linewidth=1.5, label=f'Biên $Q^+$')
-    ax2.axhline(y=q_bound, color='red', linestyle='--', linewidth=1.5)
+    # --- VẼ ĐIỂM MỤC TIÊU U_STAR ---
+    if u_star is not None:
+        ax2.scatter(u_star[0], u_star[1], c='gold', s=200, marker='*', edgecolors='k', zorder=10, label='Target $u^*$')
 
-    # Tô màu vùng Q+ (Vùng khả thi của f(x))
-    rect_width = abs(y_limits[0] - q_bound) + 5 
-    rect_height = abs(y_limits[0] - q_bound) + 5
-    rect_Qplus = patches.Rectangle((q_bound - rect_width, q_bound - rect_height), 
-                                   rect_width, rect_height, 
-                                   color='salmon', alpha=0.1, label='Miền $Q^+$')
-    ax2.add_patch(rect_Qplus)
+    # --- VẼ QUỸ ĐẠO f(x) ---
+    ax2.plot(path_f_arr[:, 0], path_f_arr[:, 1], 'k.-', linewidth=1.5, label='Quỹ đạo $f(x)$', zorder=2)
+    
+    # Vẽ điểm Start (MỚI THÊM)
+    ax2.scatter(path_f_arr[0, 0], path_f_arr[0, 1], c='cyan', s=80, edgecolors='k', label='Start', zorder=5)
+    
+    # Vẽ điểm End
+    ax2.scatter(path_f_arr[-1, 0], path_f_arr[-1, 1], c='red', s=100, marker='X', edgecolors='k', label='End', zorder=5)
 
-    # Vẽ điểm mục tiêu u* (Target)
-    ax2.scatter(u_star[0], u_star[1], c='gold', s=300, marker='*', edgecolors='k', zorder=10, label='Target $u^*$')
+    # Custom Legend
+    custom_lines = [Line2D([0], [0], color='blue', lw=2, label='Biên $C$'),
+                    Line2D([0], [0], color='red', linestyle='--', lw=2, label='Biên $Q^+$'),
+                    Line2D([0], [0], marker='o', color='w', markerfacecolor='mediumpurple', label='Vùng $f(C)$', markersize=10)]
+    if u_star is not None:
+        custom_lines.append(Line2D([0], [0], marker='*', color='w', markerfacecolor='gold', markeredgecolor='k', label='Target $u^*$', markersize=15))
 
-    # Vẽ quỹ đạo f(x)
-    ax2.plot(path_f_arr[:, 0], path_f_arr[:, 1], 'k.-', linewidth=1.5, label='Quỹ đạo $f(x)$')
-    ax2.scatter(path_f_arr[-1, 0], path_f_arr[-1, 1], c='red', s=120, marker='X', edgecolors='k', label='Final $f(x)$')
+    handles, labels = ax2.get_legend_handles_labels()
+    by_label = dict(zip(labels, handles))
+    for line in custom_lines:
+        by_label[line.get_label()] = line
+        
+    ax2.legend(by_label.values(), by_label.keys(), loc='best')
 
-    # Trang trí Ax2
-    ax2.set_xlim(y_limits[0], y_limits[1])
-    ax2.set_ylim(y_limits[0], y_limits[1])
-    ax2.set_aspect('equal')
-    ax2.grid(True, linestyle=':', alpha=0.6)
-    ax2.set_xlabel("$f_1(x)$")
-    ax2.set_ylabel("$f_2(x)$")
-    ax2.legend(loc='upper right')
+    ax2.set_xlim(y_limits); ax2.set_ylim(y_limits)
+    ax2.grid(True, linestyle=':', alpha=0.5)
 
     plt.tight_layout()
     plt.show()
