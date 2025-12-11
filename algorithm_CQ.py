@@ -31,8 +31,8 @@ def CQ_split_acceptance(f, jac_f, proj_C, proj_Qplus, x0,
         z = f(x)
         z_proj = proj_Qplus(z)          # P_{Q⁺}(f(x))
         g = jac_f(x).T @ (z - z_proj)   # ∇Φ(x)
-#         gamma_k = gamma / ((k + 1)**1.01) 
-        x_new = proj_C(x - gamma * g)
+        gamma_k = gamma / ((k + 1)**1.0001) 
+        x_new = proj_C(x - gamma_k * g)
         
         err_x = LA.norm(x_new - x)
         err_f = LA.norm(z - z_proj)
@@ -41,7 +41,7 @@ def CQ_split_acceptance(f, jac_f, proj_C, proj_Qplus, x0,
         table.add_row([
             k, 
             fmt(x), 
-            f"{gamma:.4f}", 
+            f"{gamma_k:.4f}", 
             fmt(z), 
             fmt(z_proj), 
             f"{err_x:.6f}", 
