@@ -17,3 +17,5 @@ class Problem():
     def jacobian(self, x):
         jacs = [func(x) for func in self.jac_f]
         return np.vstack(jacs)
+    
+    
