@@ -15,7 +15,7 @@ phase2:
   expo_alpha: 0.35
   expo_lambda: 0.75
   mu: 0.1
-  max_iter: 100
+  max_iter: 200
 
 # Dữ liệu Test Ray (Lưu dưới dạng list of lists)
 data:
