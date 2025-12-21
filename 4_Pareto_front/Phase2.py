@@ -1,6 +1,6 @@
 import autograd.numpy as np
 
-def optim_Scalarization(prob, x_feasible, r, 
+def optim_Scalarization(prob, x_feasible, r, z_star,
                     max_iter=1000, 
                     mu=0.1, 
                     expo_alpha=0.25,
@@ -35,7 +35,7 @@ def optim_Scalarization(prob, x_feasible, r,
         v_k = J.T @ r_k
         
         # 3. Tính Gradient Cấp cao (w^k) -> Tối ưu hóa hàm S
-        weighted_vals = r * fx_curr 
+        weighted_vals = r * (fx_curr - z_star) 
         idx_max = np.argmax(weighted_vals)
         
         # w^k = J^T * ∇ S(F(x))

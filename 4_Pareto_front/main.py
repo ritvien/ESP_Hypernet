@@ -4,6 +4,7 @@ import autograd.numpy as np
 import pandas as pd
 from Phase1 import solve_CQ_feasible
 from Phase2 import optim_Scalarization
+from Phase2_1_obj import optim_Universal
 from Problem import Problem
 
 def load_config(config_path='config.yaml'):
@@ -29,6 +30,25 @@ def run_experiment(prob):
         tol=cfg['phase1']['tol']
     )
     print(f"-> Điểm khả thi (Feasible Point): {x_feasible}")
+    
+    print("=== TÌM GIỚI HẠN PARETO: OPTIM 1 OBJ CỦA F ===")
+    limit_Q = []
+    for dim in range(2):
+        x_final, _ = optim_Universal(
+                prob=prob,
+                x_feasible=x_feasible,  
+                r=None,
+                target_dim=dim,
+                mode="min",
+                max_iter=cfg['phase2']['max_iter'],
+                mu=cfg['phase2']['mu'],
+                expo_alpha=cfg['phase2']['expo_alpha'],
+                expo_lambda=cfg['phase2']['expo_lambda'],
+                init_params=cfg['phase2']['init_params']
+            )
+        limit_Q.append(prob.objective_func(x_final)[dim])
+        print(f"Chiều {dim}: {prob.objective_func(x_final)[dim]}")
+    z_star = np.array(limit_Q)
 
     print("\n=== BẮT ĐẦU PHASE 2: SCALARIZATION (MULTI-RAY) ===")
     pareto_front_x = [] 
@@ -45,6 +65,7 @@ def run_experiment(prob):
             prob=prob,
             x_feasible=x_feasible,  
             r=r, 
+            z_star=z_star,
             max_iter=cfg['phase2']['max_iter'],
             mu=cfg['phase2']['mu'],
             expo_alpha=cfg['phase2']['expo_alpha'],
@@ -62,17 +83,7 @@ def run_experiment(prob):
     print("\n=== HOÀN THÀNH ===")
     print(f"Tìm thấy {len(pareto_front_x)} điểm Pareto.")
 
-    try:
-        visualize_complete_system(
-            prob=prob, 
-            pareto_f=pareto_front_f, 
-            phase1_path=x_hist_p1
-        )
-        print("Đã vẽ biểu đồ thành công.")
-    except Exception as e:
-        print(f"Lỗi khi vẽ biểu đồ: {e}")
-        print("Pareto Front (F values):")
-        print(pareto_front_f)
+    print(pareto_front_f)
     return {
         "x_feasible_phase1": x_feasible,
         "pareto_x": np.array(pareto_front_x),

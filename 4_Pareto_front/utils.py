@@ -1,21 +1,11 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
-def visualize_pareto_front(results, pf_cloud=None, pf_targets=None, title="Pareto Front Comparison", save_path=None, figsize=(10, 8)):
+def visualize_pareto_front(pf_pred=None, pf_cloud=None, pf_targets=None, title="Pareto Front Comparison", save_path=None, figsize=(10, 8)):
     """
     Vẽ không gian mục tiêu (Objective Space) so sánh giữa thực tế và dự đoán.
-    
-    Args:
-        results (dict): Kết quả trả về từ hàm run_experiment (chứa 'pareto_f').
-        pf_cloud (np.array): Tập hợp lớn các điểm Pareto tham chiếu (màu xám).
-        pf_targets (np.array): Các điểm Pareto đích thực sự tương ứng với tia test (màu vàng).
-        title (str): Tiêu đề biểu đồ.
-        save_path (str): Đường dẫn lưu file ảnh.
-        figsize (tuple): Kích thước ảnh.
     """
-    
-    # Lấy dữ liệu dự đoán từ kết quả chạy
-    obs_predict = results.get('pareto_f')
+
     
     # Tạo plot với kích thước chuẩn
     fig, ax = plt.subplots(figsize=figsize)
@@ -32,15 +22,15 @@ def visualize_pareto_front(results, pf_cloud=None, pf_targets=None, title="Paret
     if pf_targets is not None:
         ax.scatter(
             pf_targets[:, 0], pf_targets[:, 1], 
-            s=50, c="yellow", marker="X", 
+            s=60, c="yellow", marker="X", 
             label="PF_true (Targets)", zorder=5
         )
 
     # 3. Vẽ các điểm thuật toán tìm được (Màu đỏ - Predict)
-    if obs_predict is not None and len(obs_predict) > 0:
+    if pf_pred is not None and len(pf_pred) > 0:
         ax.scatter(
-            obs_predict[:, 0], obs_predict[:, 1], 
-            s=60, c="red", marker="D", 
+            pf_pred[:, 0], pf_pred[:, 1], 
+            s=30, c="red", marker="D", 
             label="PF_predict (Found)", zorder=10
         )
 
