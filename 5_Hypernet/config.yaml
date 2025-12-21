@@ -1,0 +1,7 @@
+GEN_RAYS:
+    N_OBJ: 2
+    MIN_ANGLE: 0.1
+    MAX_ANGLE: 1.4708 # np.pi / 2 - 0.1
+    K: 25
+    
+    
