@@ -34,6 +34,5 @@ class Hypernet_MLP(nn.Module):
         
         x = self.net(ray) # Output shape: (Batch_Size, out_dim)
         
-        x = x.unsqueeze(0)
         
         return x
