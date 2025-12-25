@@ -44,7 +44,9 @@ def run_experiment(prob):
                 mu=cfg['phase2']['mu'],
                 expo_alpha=cfg['phase2']['expo_alpha'],
                 expo_lambda=cfg['phase2']['expo_lambda'],
-                init_params=cfg['phase2']['init_params']
+                expo_beta=cfg['phase2']['expo_beta'],
+                init_params=cfg['phase2']['init_params'],
+                verbose=cfg['phase2']['verbose']
             )
         limit_Q.append(prob.objective_func(x_final)[dim])
         print(f"Chiều {dim}: {prob.objective_func(x_final)[dim]}")
