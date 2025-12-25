@@ -25,7 +25,7 @@ def optim_Scalarization(prob, x_feasible, r, z_star,
     P_Qplus = prob.proj_Qplus
     if verbose:
         table = PrettyTable()
-        table.field_names = ["k", "Alpha_k", "Step_len", "x_curr", "S(F(x))","Gap C", "Gap Q+"]
+        table.field_names = ["k", "Alpha_k","Lambda", "Eta", "Step_len", "x_curr", "S(F(x))","Gap C", "Gap Q+"]
         table.float_format = ".4"
         table.align = "r" 
 
@@ -62,8 +62,7 @@ def optim_Scalarization(prob, x_feasible, r, z_star,
         # --- 6. Tính hệ số chuẩn hóa eta_k ---
         norm_d = np.linalg.norm(d_k)
         eta_k = max(mu, norm_d)
-        
-        # --- 7. Bước cập nhật (KHÔNG CÒN PHÉP CHIẾU P_C BAO NGOÀI) ---
+        # --- 7. Bước cập nhật ---
         step_size = lambda_k / eta_k
         
         # Di chuyển ngược hướng Gradient tổng hợp
@@ -77,9 +76,9 @@ def optim_Scalarization(prob, x_feasible, r, z_star,
         viol_q = np.linalg.norm(r_k)            # Vi phạm tập Q+ (ảnh)
         viol_c = np.linalg.norm(grad_penalty_C) # Vi phạm tập C (nguồn) - [MỚI]
         if verbose:
-            if k % 10 == 0 or k == max_iter - 1:
+            if k % 50 == 0 or k == max_iter - 1:
                 x_str = np.array2string(x_curr, precision=3, separator=',')
-                table.add_row([k, f"{alpha_k:.4f}", f"{step_size:.4f}", x_str, val_S, viol_c, viol_q])
+                table.add_row([k, f"{alpha_k:.4f}",f"{lambda_k:.4f}", f"{eta_k:.4f}", f"{step_size:.4f}", x_str, val_S, viol_c, viol_q])
         
         # Điều kiện dừng: Gradient nhỏ VÀ các vi phạm ràng buộc đều nhỏ
         if norm_d < 1e-6 and viol_q < 1e-6 and viol_c < 1e-6:

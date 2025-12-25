@@ -38,15 +38,16 @@ def CQ_split_acceptance(f, jac_f, proj_C, proj_Qplus, x0,
         err_f = LA.norm(z - z_proj)
 
 
-        table.add_row([
-            k, 
-            fmt(x), 
-            f"{gamma_k:.4f}", 
-            fmt(z), 
-            fmt(z_proj), 
-            f"{err_x:.6f}", 
-            f"{err_f:.6f}"
-        ])
+        if k%10==0:
+            table.add_row([
+                k, 
+                fmt(x), 
+                f"{gamma_k:.4f}", 
+                fmt(z), 
+                fmt(z_proj), 
+                f"{err_x:.6f}", 
+                f"{err_f:.6f}"
+            ])
         # --------------------
                     
         x_hist.append(x.copy())
