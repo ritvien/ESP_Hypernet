@@ -62,8 +62,9 @@ def optim_Scalarization(prob, x_feasible, r, z_star,
         
         viol_q = np.linalg.norm(r_k)
         if norm_d < 1e-6 and viol_q < 1e-6:
-            print(f"-> Thuật toán hội tụ sớm. Sau {k} vòng lặp")
+            print(f"-> Thuật toán hội tụ sớm. Sau {k} vòng lặp.")
             break
-
+    if step == max_iter:
+        print(f"Chạy hết vòng lặp, còn cách Q: {viol_q}")
 
     return x_curr, path_x

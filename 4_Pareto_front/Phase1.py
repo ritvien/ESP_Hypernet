@@ -7,7 +7,7 @@ def fmt(arr, precision=6):
     return np.array2string(arr, precision=precision, separator=', ', suppress_small=True)
 
 def solve_CQ_feasible(f, jac_f, proj_C, proj_Qplus, x0,
-                        gamma=1.0, max_iter=1000, tol=1e-6):
+                        gamma=1.0, expo_gamma=1.0001, max_iter=1000, tol=1e-6):
     
     np.set_printoptions(precision=4, suppress=True)
 
@@ -31,7 +31,7 @@ def solve_CQ_feasible(f, jac_f, proj_C, proj_Qplus, x0,
         z = f(x)
         z_proj = proj_Qplus(z)          # P_{Q⁺}(f(x))
         g = jac_f(x).T @ (z - z_proj)   # ∇Φ(x)
-        gamma_k = gamma / ((k + 1)**1.0001) 
+        gamma_k = gamma / ((k + 1)**expo_gamma) 
         x_new = proj_C(x - gamma_k * g)
         
         err_x = LA.norm(x_new - x)

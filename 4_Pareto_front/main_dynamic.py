@@ -26,6 +26,7 @@ def run_experiment(prob):
         proj_Qplus=prob.proj_Qplus,
         x0=cfg['initialization']['x_init'],
         gamma=cfg['phase1']['gamma'], 
+        expo_gamma=cfg['phase1']['expo_gamma'],
         max_iter=cfg['phase1']['max_iter'],
         tol=cfg['phase1']['tol']
     )
@@ -44,13 +45,13 @@ def run_experiment(prob):
                 mu=cfg['phase2']['mu'],
                 expo_alpha=cfg['phase2']['expo_alpha'],
                 expo_lambda=cfg['phase2']['expo_lambda'],
-                expo_beta=cfg['phase2']['expo_beta'],
                 init_params=cfg['phase2']['init_params'],
-                verbose=cfg['phase2']['verbose']
+
             )
         limit_Q.append(prob.objective_func(x_final)[dim])
         print(f"Chiều {dim}: {prob.objective_func(x_final)[dim]}")
     z_star = np.array(limit_Q)
+#     z_star = np.array([0.0, 0.0])
 
     print("\n=== BẮT ĐẦU PHASE 2: SCALARIZATION (MULTI-RAY) ===")
     pareto_front_x = [] 
@@ -72,7 +73,9 @@ def run_experiment(prob):
             mu=cfg['phase2']['mu'],
             expo_alpha=cfg['phase2']['expo_alpha'],
             expo_lambda=cfg['phase2']['expo_lambda'],
-            init_params=cfg['phase2']['init_params']
+            init_params=cfg['phase2']['init_params'],
+            expo_beta=cfg['phase2']['expo_beta'],
+            verbose=cfg['phase2']['verbose']
         )
         
         pareto_front_x.append(x_final)

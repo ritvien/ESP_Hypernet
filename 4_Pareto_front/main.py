@@ -26,6 +26,7 @@ def run_experiment(prob):
         proj_Qplus=prob.proj_Qplus,
         x0=cfg['initialization']['x_init'],
         gamma=cfg['phase1']['gamma'], 
+        expo_gamma=cfg['phase1']['expo_gamma'],
         max_iter=cfg['phase1']['max_iter'],
         tol=cfg['phase1']['tol']
     )
@@ -49,6 +50,7 @@ def run_experiment(prob):
         limit_Q.append(prob.objective_func(x_final)[dim])
         print(f"Chiều {dim}: {prob.objective_func(x_final)[dim]}")
     z_star = np.array(limit_Q)
+#     z_star = np.array([0.0, 0.0])
 
     print("\n=== BẮT ĐẦU PHASE 2: SCALARIZATION (MULTI-RAY) ===")
     pareto_front_x = [] 

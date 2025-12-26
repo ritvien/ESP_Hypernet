@@ -84,6 +84,8 @@ def optim_Scalarization(prob, x_feasible, r, z_star,
         if norm_d < 1e-6 and viol_q < 1e-6 and viol_c < 1e-6:
             print(f"-> Thuật toán hội tụ sớm. Sau {k} vòng lặp")
             break
+    if step == max_iter:
+        print(f"Reach max iter, C: {viol_c}, Q: {viol_q}")
     if verbose:
         print(table)
         final_fx = prob.objective_func(x_curr)

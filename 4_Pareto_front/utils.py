@@ -14,7 +14,7 @@ def visualize_pareto_front(pf_pred=None, pf_cloud=None, pf_targets=None, title="
     if pf_cloud is not None:
         ax.scatter(
             pf_cloud[:, 0], pf_cloud[:, 1], 
-            s=20, c="gray", marker="X", alpha=0.6, 
+            s=100, c="gray", marker="X", alpha=0.6, 
             label="PF (Reference Cloud)"
         )
 

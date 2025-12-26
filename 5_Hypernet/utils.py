@@ -29,7 +29,7 @@ def plot_trajectories(obs_true=None, obs_predict=None, obs_pareto_front=None, ti
         obs_pareto_front[:, 0], obs_pareto_front[:, 1], s=20, c="gray", label="PF", marker="X"
     )
     ax.scatter(
-        obs_true[:, 0], obs_true[:, 1], s=20, c="yellow", label="PF_true", marker="X"
+        obs_true[:, 0], obs_true[:, 1], s=20, c="yellow", label="PF_true", marker="D"
     )
     ax.scatter(
         obs_predict[:, 0],
@@ -37,7 +37,7 @@ def plot_trajectories(obs_true=None, obs_predict=None, obs_pareto_front=None, ti
         s=20,
         c="red",
         label="PF_predict",
-        marker="D",
+        marker="X",
     )
     plt.legend()
     ax.set_title(title)
