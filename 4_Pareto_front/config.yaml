@@ -43,16 +43,17 @@ data:
 initialization:
   x_init: [-10.0, -10.0]
 phase1:
-  gamma: 5
-  expo_gamma: 0.8
+  gamma: 0.5
+  expo_gamma: 0.35
   max_iter: 500
   tol: 0.0001
 
 phase2:
-  expo_alpha: 0.35
-  expo_beta: 1.0
-  expo_lambda: 0.65
-  init_params: 1
-  max_iter: 1000
-  mu: 0.1
+  expo_alpha: 0.45
+  expo_beta: 0.4
+  expo_lambda: 0.55
+  init_params: 1.0
+  max_iter: 2000
+  mu: 0.0001
   verbose: false
+  expo_gamma: 0.5

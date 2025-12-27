@@ -1,6 +1,68 @@
 import matplotlib.pyplot as plt
 import numpy as np
 
+def generate_pareto_grid(f_func, c_funcs, q_plus_func, resolution=400):
+    """
+    Sinh dữ liệu Pareto cho bài toán 2D bằng cách quét lưới tọa độ.
+    f_func: Hàm mục tiêu f(x)
+    c_funcs: Danh sách các hàm ràng buộc c(x) >= 0 (miền C)
+    q_plus_func: Hàm ràng buộc q_plus(y) >= 0 (miền Q+)
+    """
+    print(f"--- Đang quét lưới {resolution}x{resolution} điểm ---")
+    
+    # 1. Xác định phạm vi quét dựa trên các ràng buộc hình tròn c1, c2
+
+    x0_range = np.linspace(0, 1, resolution)
+    x1_range = np.linspace(0, 1, resolution)
+    X0, X1 = np.meshgrid(x0_range, x1_range)
+    
+    # Làm phẳng để tính toán vector
+    points_X = np.vstack([X0.ravel(), X1.ravel()]).T
+    
+    # 2. Kiểm tra ràng buộc miền C: c1(x) >= 0 và c2(x) >= 0
+    # (Sử dụng các hàm c1, c2 đã định nghĩa của bạn)
+    mask_C = np.ones(len(points_X), dtype=bool)
+    for c_func in c_funcs:
+        mask_C &= (c_func(points_X.T) >= 0)
+    
+    feasible_X = points_X[mask_C]
+    print(f"-> Tìm thấy {len(feasible_X)} điểm thỏa mãn miền C.")
+    
+    if len(feasible_X) == 0:
+        return None, None
+
+    # 3. Tính giá trị mục tiêu f(x) và kiểm tra miền Q+
+    f_vals = np.array([f_func(x) for x in feasible_X])  # shape (N, 2)
+    
+    # Kiểm tra q_plus(f(x)) >= 0
+    # Lưu ý: Hàm q_plus của bạn nhận 1 vector y, ta cần áp dụng cho toàn bộ f_vals
+    mask_Qplus = np.array([q_plus_func(y) >= 0 for y in f_vals])
+    
+    pf_cloud_data = f_vals[mask_Qplus]
+    print(f"-> Lọc còn {len(pf_cloud_data)} điểm thỏa mãn Q+ (Cloud).")
+
+    if len(pf_cloud_data) == 0:
+        return None, None
+
+    # 4. Lọc Pareto Front từ Cloud (Tìm các điểm không bị trội)
+    # Sắp xếp theo f1 tăng dần
+    sorted_indices = np.argsort(pf_cloud_data[:, 0])
+    y_sorted = pf_cloud_data[sorted_indices]
+    
+    pareto_list = []
+    pareto_list.append(y_sorted[0])
+    current_min_f2 = y_sorted[0][1]
+    
+    for i in range(1, len(y_sorted)):
+        if y_sorted[i][1] < current_min_f2:
+            pareto_list.append(y_sorted[i])
+            current_min_f2 = y_sorted[i][1]
+    
+    pf_targets_data = np.array(pareto_list)
+    print(f"-> Kết quả: {len(pf_targets_data)} điểm Pareto.")
+    
+    return pf_cloud_data, pf_targets_data
+
 def visualize_pareto_front(pf_pred=None, pf_cloud=None, pf_targets=None, title="Pareto Front Comparison", save_path=None, figsize=(10, 8)):
     """
     Vẽ không gian mục tiêu (Objective Space) so sánh giữa thực tế và dự đoán.

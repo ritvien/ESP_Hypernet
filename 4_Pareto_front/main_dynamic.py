@@ -1,4 +1,3 @@
- 
 import yaml
 import autograd.numpy as np
 import pandas as pd
@@ -32,9 +31,9 @@ def run_experiment(prob):
     )
     print(f"-> Điểm khả thi (Feasible Point): {x_feasible}")
     
-    print("=== TÌM GIỚI HẠN PARETO: OPTIM 1 OBJ CỦA F ===")
+    print("\n=== TÌM GIỚI HẠN PARETO: OPTIM 1 OBJ CỦA F ===")
     limit_Q = []
-    for dim in range(2):
+    for dim in range(2): # Giả sử bài toán 2 chiều mục tiêu
         x_final, _ = optim_Universal(
                 prob=prob,
                 x_feasible=x_feasible,  
@@ -46,14 +45,16 @@ def run_experiment(prob):
                 expo_alpha=cfg['phase2']['expo_alpha'],
                 expo_lambda=cfg['phase2']['expo_lambda'],
                 init_params=cfg['phase2']['init_params'],
-
             )
-        limit_Q.append(prob.objective_func(x_final)[dim])
-        print(f"Chiều {dim}: {prob.objective_func(x_final)[dim]}")
+        val = prob.objective_func(x_final)[dim]
+        limit_Q.append(val)
+        print(f"-> Cực tiểu chiều {dim}: {val}")
+    
     z_star = np.array(limit_Q)
-#     z_star = np.array([0.0, 0.0])
+    # z_star = np.array([0.0, 0.0]) # Uncomment nếu muốn fix cứng z*
+    print(f"-> Điểm lý tưởng z*: {z_star}")
 
-    print("\n=== BẮT ĐẦU PHASE 2: SCALARIZATION (MULTI-RAY) ===")
+    print("\n=== BẮT ĐẦU PHASE 2: SCALARIZATION (MULTI-RAY) - ALGORITHM 1-A ===")
     pareto_front_x = [] 
     pareto_front_f = [] 
     all_paths = []      
@@ -61,7 +62,6 @@ def run_experiment(prob):
     test_rays = cfg['data']['test_ray']
     
     for i, r in enumerate(test_rays):
-        # In tiến độ
         print(f"Running Ray {i+1}/{len(test_rays)}: {r}")
         
         x_final, path_x = optim_Scalarization(
@@ -71,10 +71,11 @@ def run_experiment(prob):
             z_star=z_star,
             max_iter=cfg['phase2']['max_iter'],
             mu=cfg['phase2']['mu'],
+            init_params=cfg['phase2']['init_params'],
             expo_alpha=cfg['phase2']['expo_alpha'],
             expo_lambda=cfg['phase2']['expo_lambda'],
-            init_params=cfg['phase2']['init_params'],
             expo_beta=cfg['phase2']['expo_beta'],
+            expo_gamma=cfg['phase2']['expo_gamma'], 
             verbose=cfg['phase2']['verbose']
         )
         
@@ -87,8 +88,11 @@ def run_experiment(prob):
     
     print("\n=== HOÀN THÀNH ===")
     print(f"Tìm thấy {len(pareto_front_x)} điểm Pareto.")
+    
+    # In kết quả dạng bảng đơn giản
+    df_res = pd.DataFrame(pareto_front_f, columns=[f"f_{i}" for i in range(pareto_front_f.shape[1])])
+    print(df_res)
 
-    print(pareto_front_f)
     return {
         "x_feasible_phase1": x_feasible,
         "pareto_x": np.array(pareto_front_x),

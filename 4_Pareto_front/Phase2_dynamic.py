@@ -3,95 +3,107 @@ from prettytable import PrettyTable
 
 def optim_Scalarization(prob, x_feasible, r, z_star,
                                      max_iter=1000, 
-                                     mu=0.1, 
-                                     expo_alpha=0.25,
-                                     expo_lambda=0.75,
-                                     expo_beta=0.85,
+                                     mu=1e-6,                 # Ngưỡng normalization nhỏ
                                      init_params=1.0,
+                                     # --- Tham số mũ cho thuật toán 1-A ---
+                                     expo_alpha=0.25,          # Giảm: Trọng số hàm mục tiêu (a)
+                                     expo_lambda=0.75,         # Giảm: Bước nhảy (l), 0.5 < l <= 1
+                                     expo_beta=0.75,           # Tăng: Phạt tập nguồn C (b_C) < l
+                                     expo_gamma=0.35,         # Tăng: Phạt tập đích Q+ (b_Q) < b_C < l
                                      verbose=True
                        ):
     """
-    Bài toán: Giải quyết bài toán hai cấp bằng phương pháp Neurodynamic/Penalty
-    (Không dùng phép chiếu cứng P_C ở bước cập nhật cuối cùng)
+    Algorithm 1-A: Balanced Penalty Method cho bài toán ESP.
     
-    Args:
-        beta_param (float): Hệ số phạt để kéo x về tập C (nên chọn giá trị dương lớn, vd: 10, 100...)
+    Công thức cập nhật:
+        d^k = gamma_k * v^k + alpha_k * w^k + beta_k * z^k
+        x^{k+1} = x^k - (lambda_k / eta_k) * d^k
+    
+    Trong đó:
+        v^k: Gradient vi phạm tập Q+ (SFP)
+        w^k: Subgradient hàm mục tiêu S
+        z^k: Gradient vi phạm tập C
     """
     
-    x_curr = np.array(x_feasible).copy()
+    x_curr = np.array(x_feasible, dtype=np.float64).copy()
     path_x = [x_curr.copy()]
     
     P_C = prob.proj_C
     P_Qplus = prob.proj_Qplus
+    
     if verbose:
         table = PrettyTable()
-        table.field_names = ["k", "Alpha_k","Lambda", "Eta", "Step_len", "x_curr", "S(F(x))","Gap C", "Gap Q+"]
-        table.float_format = ".4"
+        table.field_names = ["k", "Alpha", "Beta(C)", "Gamma(Q)", "Lambda", "Step", "S(F(x))", "Gap C", "Gap Q+"]
+        table.float_format = ".5"
         table.align = "r" 
+
+    print(f"Params: alpha=k^-{expo_alpha}, lambda=k^-{expo_lambda}, beta=k^{expo_beta}, gamma=k^{expo_gamma}")
 
     for k in range(max_iter):
         step = k + 1
         
+        # 1. Tính toán cơ bản
         fx_curr = prob.objective_func(x_curr) 
         J = prob.jacobian(x_curr)             
 
-        # --- 1. Tính Gradient Cấp thấp (v^k) : Giải quyết ràng buộc F(x) in Q+ ---
+        # 2. Tính Gradient Cấp thấp v^k (Ràng buộc Q+)
         proj_q = P_Qplus(fx_curr)
-        r_k = fx_curr - proj_q        # Residual vector for Q+
-        v_k = J.T @ r_k
+        gap_vec_q = fx_curr - proj_q        
+        v_k = J.T @ gap_vec_q
         
-        # --- 2. Tính Gradient Cấp cao (w^k) : Tối ưu hóa hàm S ---
+        # 3. Tính Gradient Cấp cao w^k (Hàm mục tiêu S)
         weighted_vals = r * (fx_curr - z_star) 
         idx_max = np.argmax(weighted_vals)
         w_k = r[idx_max] * J[idx_max, :]
         
-        # --- 3. [MỚI] Tính Gradient Phạt tập C (z^k) : Kéo x về C ---
-        # Đạo hàm của 0.5 * ||x - P_C(x)||^2 là (x - P_C(x))
+        # 4. Tính Gradient Phạt tập C z^k (Ràng buộc C)
         proj_c_val = P_C(x_curr)
-        grad_penalty_C = x_curr - proj_c_val  
+        z_k = x_curr - proj_c_val  
         
-        # --- 4. Cập nhật tham số ---
-        alpha_k = init_params / (step ** expo_alpha)
-        lambda_k = init_params / (step ** expo_lambda)
-        beta_k = init_params * (step ** expo_beta)
+        # 5. Cập nhật tham số động (Theo giả thiết hội tụ)
+        alpha_k = init_params / (step ** expo_alpha)   # Giảm dần
+        lambda_k = init_params / (step ** expo_lambda) # Giảm dần
+        beta_k = init_params * (step ** expo_beta)     # Tăng dần (Kéo về C)
+        gamma_k = init_params * (step ** expo_gamma)   # Tăng dần (Kéo về Q+)
         
-        # --- 5. Tổng hợp hướng di chuyển d^k (Total Gradient) ---
-        # d^k = Gradient_SFP + alpha * Gradient_Objective + beta * Gradient_ConstraintC
-        d_k = v_k + (alpha_k * w_k) + (beta_k * grad_penalty_C)
+        # 6. Tổng hợp hướng di chuyển d^k
+        # Algorithm 1-A: Có hệ số gamma_k cho v_k
+        d_k = (gamma_k * v_k) + (alpha_k * w_k) + (beta_k * z_k)
         
-        # --- 6. Tính hệ số chuẩn hóa eta_k ---
+        # 7. Chuẩn hóa và Cập nhật
         norm_d = np.linalg.norm(d_k)
         eta_k = max(mu, norm_d)
-        # --- 7. Bước cập nhật ---
-        step_size = lambda_k / eta_k
+        
+        actual_step_size = lambda_k / eta_k
         
         # Di chuyển ngược hướng Gradient tổng hợp
-        x_next = x_curr - step_size * d_k
+        x_next = x_curr - actual_step_size * d_k
         
         path_x.append(x_next.copy())
         x_curr = x_next
         
-        # --- Kiểm tra hội tụ ---
-        val_S = np.linalg.norm(fx_curr - z_star) 
-        viol_q = np.linalg.norm(r_k)            # Vi phạm tập Q+ (ảnh)
-        viol_c = np.linalg.norm(grad_penalty_C) # Vi phạm tập C (nguồn) - [MỚI]
+        # --- Đánh giá vi phạm và mục tiêu ---
+        val_S = np.linalg.norm(fx_curr - z_star) # Chỉ để hiển thị
+        viol_q = np.linalg.norm(gap_vec_q)       # Norm sai số tập Q+
+        viol_c = np.linalg.norm(z_k)             # Norm sai số tập C
+        
         if verbose:
             if k % 50 == 0 or k == max_iter - 1:
-                x_str = np.array2string(x_curr, precision=3, separator=',')
-                table.add_row([k, f"{alpha_k:.4f}",f"{lambda_k:.4f}", f"{eta_k:.4f}", f"{step_size:.4f}", x_str, val_S, viol_c, viol_q])
+                table.add_row([k, alpha_k, beta_k, gamma_k, lambda_k, actual_step_size, val_S, viol_c, viol_q])
         
-        # Điều kiện dừng: Gradient nhỏ VÀ các vi phạm ràng buộc đều nhỏ
-        if norm_d < 1e-6 and viol_q < 1e-6 and viol_c < 1e-6:
-            print(f"-> Thuật toán hội tụ sớm. Sau {k} vòng lặp")
+        # --- Điều kiện dừng ---
+        if viol_q < 1e-5 and viol_c < 1e-5 and actual_step_size < 1e-6:
+            print(f"-> Thuật toán hội tụ sớm tại k={k}.")
             break
+            
     if step == max_iter:
-        print(f"Reach max iter, C: {viol_c}, Q: {viol_q}")
+        print(f"-> Reach max_iter. Final Gap C: {viol_c:.6f}, Gap Q: {viol_q:.6f}")
+        
     if verbose:
         print(table)
         final_fx = prob.objective_func(x_curr)
         final_viol_q = np.linalg.norm(final_fx - P_Qplus(final_fx))
-        print(f"-> Kết quả cuối cùng Phase 2: {x_curr}")
-        print(f"-> S(F(x)): {np.linalg.norm(final_fx - z_star):.4f}")
-        print(f"-> Sai số ràng buộc Q+ (Gap): {final_viol_q:.6f}")
+        print(f"-> Kết quả cuối cùng: {x_curr}")
+        print(f"-> S(F(x)) approx distance: {np.linalg.norm(final_fx - z_star):.5f}")
 
     return x_curr, path_x
