@@ -37,7 +37,7 @@ def solve_CQ_feasible(f, jac_f, proj_C, proj_Qplus, x0,
         err_x = LA.norm(x_new - x)
         err_f = LA.norm(z - z_proj)
 
-        if k%10==0:
+        if k%250==0:
             table.add_row([
                 k, 
                 fmt(x), 

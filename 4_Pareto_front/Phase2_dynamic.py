@@ -30,6 +30,7 @@ def optim_Scalarization(prob, x_feasible, r, z_star,
     
     P_C = prob.proj_C
     P_Qplus = prob.proj_Qplus
+    obj_val_prev = float('inf')
     
     if verbose:
         table = PrettyTable()
@@ -55,6 +56,8 @@ def optim_Scalarization(prob, x_feasible, r, z_star,
         weighted_vals = r * (fx_curr - z_star) 
         idx_max = np.argmax(weighted_vals)
         w_k = r[idx_max] * J[idx_max, :]
+        
+        current_obj_val = weighted_vals[idx_max]
         
         # 4. Tính Gradient Phạt tập C z^k (Ràng buộc C)
         proj_c_val = P_C(x_curr)
@@ -86,18 +89,20 @@ def optim_Scalarization(prob, x_feasible, r, z_star,
         val_S = np.linalg.norm(fx_curr - z_star) # Chỉ để hiển thị
         viol_q = np.linalg.norm(gap_vec_q)       # Norm sai số tập Q+
         viol_c = np.linalg.norm(z_k)             # Norm sai số tập C
-        
+        delta_obj = abs(current_obj_val - obj_val_prev)
+            
         if verbose:
-            if k % 50 == 0 or k == max_iter - 1:
+            if k % 250 == 0 or k == max_iter - 1:
                 table.add_row([k, alpha_k, beta_k, gamma_k, lambda_k, actual_step_size, val_S, viol_c, viol_q])
         
         # --- Điều kiện dừng ---
-        if viol_q < 1e-5 and viol_c < 1e-5 and actual_step_size < 1e-6:
+        if viol_q < 1e-5 and viol_c < 1e-5 and delta_obj < 1e-5:
             print(f"-> Thuật toán hội tụ sớm tại k={k}.")
             break
+        obj_val_prev = current_obj_val
             
     if step == max_iter:
-        print(f"-> Reach max_iter. Final Gap C: {viol_c:.6f}, Gap Q: {viol_q:.6f}")
+        print(f"!! Max_iter. Delta: {delta_obj:.6f}, Gap C: {viol_c:.6f}, Gap Q: {viol_q:.6f}")
         
     if verbose:
         print(table)

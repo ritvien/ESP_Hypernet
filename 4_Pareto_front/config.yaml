@@ -41,11 +41,11 @@ data:
     -   - 0.0
         - 1.0
 initialization:
-  x_init: [-10.0, -10.0]
+  x_init: [2.5, 2.5]
 phase1:
-  gamma: 0.5
-  expo_gamma: 0.35
-  max_iter: 500
+  gamma: 12
+  expo_gamma: 0.01
+  max_iter: 10000
   tol: 0.0001
 
 phase2:
