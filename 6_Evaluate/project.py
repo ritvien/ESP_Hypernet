@@ -38,7 +38,7 @@ class Projection:
         target_point: Điểm cần chiếu 
         """
         
-        init_point = target_point
+        init_point = np.array(target_point, dtype=np.float64)
         
         res = minimize(
             self.objective_func,
